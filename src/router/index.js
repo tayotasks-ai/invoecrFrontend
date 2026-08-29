@@ -3,11 +3,25 @@ import { useAuthStore } from '../stores/auth'
 
 const routes = [
   {
+    // The marketing landing page - what a signed-out visitor sees at the
+    // root URL. Signed-in users are bounced straight to their dashboard by
+    // the guard below, so this only ever renders for guests.
+    path: '/',
+    name: 'landing',
+    component: () => import('../views/Landing.vue'),
+  },
+  {
+    // The actual app now lives under /dashboard, /invoices, etc. rather
+    // than claiming the bare "/" - that's the landing page's job now. Only
+    // dashboard's own path changed (from '' to 'dashboard'); every other
+    // child route and every internal link already navigates by route
+    // `name` rather than a hardcoded path, so this move needed no other
+    // changes.
     path: '/',
     component: () => import('../layouts/DashboardLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', name: 'dashboard', component: () => import('../views/DashboardHome.vue') },
+      { path: 'dashboard', name: 'dashboard', component: () => import('../views/DashboardHome.vue') },
       { path: 'invoices', name: 'invoices', component: () => import('../views/InvoiceList.vue') },
       { path: 'invoices/new', name: 'invoice-create', component: () => import('../views/InvoiceCreate.vue') },
       { path: 'invoices/:code', name: 'invoice-detail', component: () => import('../views/InvoiceDetail.vue') },
@@ -76,7 +90,11 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'sign-in', query: { redirect: to.fullPath } }
   }
-  if (to.meta.guestOnly && auth.isAuthenticated) {
+  // Landing page behaves like a guestOnly route without needing its own
+  // meta flag: a signed-in visitor landing on "/" (e.g. a bookmark, or
+  // typing the bare domain) means straight to their dashboard, not the
+  // marketing pitch.
+  if ((to.meta.guestOnly || to.name === 'landing') && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }
   return true

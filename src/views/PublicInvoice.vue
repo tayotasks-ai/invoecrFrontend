@@ -5,7 +5,6 @@ import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
-import ThemeToggle from '../components/ThemeToggle.vue'
 
 const route = useRoute()
 const code = route.params.code
@@ -68,9 +67,6 @@ async function payNow() {
 
 <template>
   <div class="relative min-h-screen bg-ink-50 px-4 py-10">
-    <div class="absolute right-4 top-4">
-      <ThemeToggle />
-    </div>
     <div class="mx-auto max-w-xl">
       <Spinner v-if="loading" />
 
