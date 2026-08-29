@@ -44,6 +44,13 @@ export const useAuthStore = defineStore('auth', {
       this._persist(res.data)
       return res.data
     },
+    // Resetting a password also signs you in (see AuthService.resetPassword)
+    // - same _persist as sign-in/sign-up.
+    async completePasswordReset({ token, password }) {
+      const res = await api.post('/auth/reset-password', { token, password })
+      this._persist(res.data)
+      return res.data
+    },
     signOut() {
       this.token = null
       this.entity = null

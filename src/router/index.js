@@ -43,7 +43,17 @@ const routes = [
     children: [
       { path: 'sign-in', name: 'sign-in', component: () => import('../views/SignIn.vue') },
       { path: 'sign-up', name: 'sign-up', component: () => import('../views/SignUp.vue') },
+      { path: 'forgot-password', name: 'forgot-password', component: () => import('../views/ForgotPassword.vue') },
+      { path: 'reset-password/:token', name: 'reset-password', component: () => import('../views/ResetPassword.vue') },
     ],
+  },
+  {
+    // Matches the link in the welcome email: `${APP_URL}/verify-email/${token}`.
+    // Public, no auth - the visitor may not be signed in on this device
+    // (see VerifyEmail.vue, which handles both cases).
+    path: '/verify-email/:token',
+    name: 'verify-email',
+    component: () => import('../views/VerifyEmail.vue'),
   },
   {
     // Matches the payment link the backend embeds in every invoice

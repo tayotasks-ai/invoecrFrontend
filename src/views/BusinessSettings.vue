@@ -67,8 +67,17 @@ const uploadingLogo = ref(false)
 const uploadingSignature = ref(false)
 const uploadError = ref('')
 
+// Logos/signatures are stored as base64 data: URIs on the entity document
+// (see EntityService._fileToDataUri) rather than uploaded to a third-party
+// image host, so app.js caps the upload at 2MB - checked here too, so a
+// too-large file doesn't waste a round trip just to be rejected server-side.
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 async function uploadFile(field, file) {
   uploadError.value = ''
+  if (file.size > MAX_IMAGE_BYTES) {
+    uploadError.value = 'That file is too large - the maximum size is 2MB.'
+    return
+  }
   const formData = new FormData()
   formData.append('file', file)
   const endpoint = field === 'logo' ? '/entity/add-logo' : '/entity/add-signature'
@@ -269,8 +278,8 @@ async function addStaff() {
 
       <p v-if="staffError" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ staffError }}</p>
       <div v-if="invitedCredentials" class="mt-3 rounded-md bg-lilac-50 px-3 py-2 text-sm text-lilac-800">
-        Invited <strong>{{ invitedCredentials.email }}</strong>. Temporary password (share this with them - there's no
-        automatic email invite yet):
+        Invited <strong>{{ invitedCredentials.email }}</strong> - we've emailed them this temporary password too, but
+        here it is in case that email doesn't arrive:
         <span class="font-mono">{{ invitedCredentials.tempPassword }}</span>
       </div>
     </section>

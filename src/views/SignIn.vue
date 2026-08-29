@@ -37,7 +37,12 @@ async function onSubmit() {
         <input id="email" v-model="email" type="email" required class="input" placeholder="you@business.com" />
       </div>
       <div>
-        <label class="label" for="password">Password</label>
+        <div class="mb-1.5 flex items-center justify-between">
+          <label class="text-xs font-medium text-ink-600" for="password">Password</label>
+          <router-link :to="{ name: 'forgot-password' }" class="text-xs font-medium text-lilac-600 hover:text-lilac-700">
+            Forgot password?
+          </router-link>
+        </div>
         <input id="password" v-model="password" type="password" required class="input" placeholder="••••••••" />
       </div>
 
