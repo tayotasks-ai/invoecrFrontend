@@ -2,8 +2,18 @@
 import { onMounted, ref, computed } from 'vue'
 import api from '../lib/api'
 import { formatMoney } from '../lib/format'
+import { useAuthStore } from '../stores/auth'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+
+const auth = useAuthStore()
+// Inventory is a Growth-plan+ feature (see backend config/plans.js). Items
+// already added stay visible/usable (issuing invoices against them, seeing
+// stock) even on a lower plan - only adding/editing items via the form is
+// gated. Strictly `=== true` so the form starts hidden rather than flashing
+// on before planDetails has loaded from refreshEntity() below. The real
+// enforcement is server-side in InventoryService.createInventoryItem.
+const allowInventory = computed(() => auth.entity?.planDetails?.allowInventory === true)
 
 const loading = ref(true)
 const items = ref([])
@@ -36,7 +46,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(() => {
+  load()
+  auth.refreshEntity().catch(() => null)
+})
 
 let searchTimer = null
 function onSearchInput() {
@@ -162,7 +175,13 @@ function isLowStock(item) {
       </div>
 
       <div class="lg:col-span-2">
-        <div class="card p-5">
+        <div v-if="!allowInventory && !editingCode" class="card p-6 text-center">
+          <p class="text-sm font-semibold text-ink-800">Inventory is a Business-plan feature</p>
+          <p class="mt-1 text-sm text-ink-500">Upgrade your plan to add and track stock items here.</p>
+          <router-link :to="{ name: 'billing' }" class="btn-primary mt-4 inline-flex">See plans</router-link>
+        </div>
+
+        <div v-else class="card p-5">
           <h2 class="text-sm font-semibold text-ink-800">{{ editingCode ? 'Edit item' : 'Add an item' }}</h2>
           <form class="mt-4 space-y-3" @submit.prevent="onSubmit">
             <div>

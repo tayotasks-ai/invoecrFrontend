@@ -10,6 +10,15 @@ const plans = [
     featured: false,
   },
   {
+    name: 'Starter',
+    price: '₦1,000',
+    period: '/month',
+    blurb: 'For when 2 invoices a month is not enough.',
+    features: ['10 invoices a month', 'Paystack payment links', 'Basic invoice template'],
+    cta: 'Start with Starter',
+    featured: false,
+  },
+  {
     name: 'Growth',
     price: '₦4,500',
     period: '/month',
@@ -191,7 +200,7 @@ const steps = [
           <h2 class="text-2xl font-semibold text-ink-900 sm:text-3xl">Simple pricing, in naira</h2>
           <p class="mt-3 text-sm text-ink-500 sm:text-base">Start free. Upgrade only when you're sending enough invoices to need it.</p>
         </div>
-        <div class="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+        <div class="mx-auto mt-12 grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div
             v-for="plan in plans"
             :key="plan.name"
