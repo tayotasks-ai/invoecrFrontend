@@ -3,8 +3,17 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../lib/api'
 import { formatMoney } from '../lib/format'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
+// Quotes are a Growth-plan+ feature (see backend config/plans.js) - this is
+// a courtesy check so someone on a lower plan sees an upgrade prompt
+// instead of a blank form, not the real enforcement (that's server-side in
+// QuoteService.createQuote, which rejects this regardless of what the UI
+// shows). Strictly `=== true` so this starts hidden rather than flashing
+// the form before planDetails has loaded.
+const allowQuotes = computed(() => auth.entity?.planDetails?.allowQuotes === true)
 
 const customers = ref([])
 const customerMode = ref('existing') // 'existing' | 'new'
@@ -29,6 +38,7 @@ const loadingCustomers = ref(true)
 const error = ref('')
 
 onMounted(async () => {
+  auth.refreshEntity().catch(() => null)
   try {
     const res = await api.get('/customer')
     customers.value = res.data
@@ -137,7 +147,13 @@ async function onSubmit() {
       <h1 class="text-lg font-semibold text-ink-900">New quote</h1>
     </div>
 
-    <form class="mt-6 space-y-6" @submit.prevent="onSubmit">
+    <div v-if="!allowQuotes" class="mt-6 card p-6 text-center">
+      <p class="text-sm font-semibold text-ink-800">Quotes are a Growth-plan feature</p>
+      <p class="mt-1 text-sm text-ink-500">Upgrade your plan to send proforma invoices and quotes to customers.</p>
+      <router-link :to="{ name: 'billing' }" class="btn-primary mt-4 inline-flex">See plans</router-link>
+    </div>
+
+    <form v-else class="mt-6 space-y-6" @submit.prevent="onSubmit">
       <!-- Customer -->
       <section class="card p-5">
         <h2 class="text-sm font-semibold text-ink-800">Customer</h2>

@@ -2,9 +2,19 @@
 import { onMounted, ref, watch } from 'vue'
 import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
+import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+
+const auth = useAuthStore()
+// Quotes are a Growth-plan+ feature (see backend config/plans.js). Viewing
+// quotes you already made stays available even on a lower plan (e.g. after
+// a downgrade) - only creating new ones is gated, which is what the "+ New
+// quote" buttons below check for. Strictly `=== true` (not just truthy)
+// so the button starts hidden rather than flashing on and then failing,
+// before planDetails has loaded from refreshEntity() below.
+const allowQuotes = () => auth.entity?.planDetails?.allowQuotes === true
 
 const loading = ref(true)
 const quotes = ref([])
@@ -33,7 +43,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  auth.refreshEntity().catch(() => null)
+})
 watch([status, page], load)
 
 let searchTimer
@@ -53,7 +66,10 @@ watch(search, () => {
         <h1 class="text-lg font-semibold text-ink-900">Quotes</h1>
         <p class="mt-1 text-sm text-ink-400">Send a price estimate first, then convert it to a real invoice once the customer's on board.</p>
       </div>
-      <router-link :to="{ name: 'quote-create' }" class="btn-primary">+ New quote</router-link>
+      <router-link v-if="allowQuotes()" :to="{ name: 'quote-create' }" class="btn-primary">+ New quote</router-link>
+      <router-link v-else :to="{ name: 'billing' }" class="btn-secondary" title="Quotes are a Growth-plan feature">
+        Upgrade to create quotes
+      </router-link>
     </div>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
@@ -74,7 +90,8 @@ watch(search, () => {
         description="Try a different search or status filter, or create a new quote."
       >
         <template #action>
-          <router-link :to="{ name: 'quote-create' }" class="btn-primary">Create a quote</router-link>
+          <router-link v-if="allowQuotes()" :to="{ name: 'quote-create' }" class="btn-primary">Create a quote</router-link>
+          <router-link v-else :to="{ name: 'billing' }" class="btn-primary">Upgrade to create quotes</router-link>
         </template>
       </EmptyState>
 

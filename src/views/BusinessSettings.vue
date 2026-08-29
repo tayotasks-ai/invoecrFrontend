@@ -1,9 +1,20 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
+onMounted(() => {
+  auth.refreshEntity().catch(() => null)
+})
+
+// Accountant/bookkeeper access is a Business-plan feature (see backend
+// config/plans.js). Access already granted stays visible/revocable
+// regardless of plan (see AccountantService.revokeAccess, which has no
+// plan check) - only sending a *new* invite is gated, same "viewing stays,
+// creating is gated" pattern as Quotes/Inventory. Strictly `=== true` so
+// this starts hidden rather than flashing on before planDetails has loaded.
+const allowAccountantAccess = computed(() => auth.entity?.planDetails?.allowAccountantAccess === true)
 
 const profile = ref({
   phone: auth.entity?.phone || '',
@@ -272,7 +283,12 @@ async function addStaff() {
         switch into your business from their own invoecr account.
       </p>
 
-      <form class="mt-4 flex flex-wrap gap-2" @submit.prevent="inviteAccountant">
+      <div v-if="!allowAccountantAccess" class="mt-4 rounded-md bg-lilac-50 px-3 py-2.5 text-sm text-lilac-800">
+        Inviting an accountant or bookkeeper is a Business-plan feature.
+        <router-link :to="{ name: 'billing' }" class="font-semibold underline">Upgrade your plan</router-link>
+        to send an invite.
+      </div>
+      <form v-else class="mt-4 flex flex-wrap gap-2" @submit.prevent="inviteAccountant">
         <input v-model="accountantEmail" type="email" placeholder="Their email address" class="input flex-1" required />
         <button type="submit" class="btn-primary" :disabled="invitingAccountant">
           {{ invitingAccountant ? 'Inviting…' : 'Send invite' }}

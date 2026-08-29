@@ -3,12 +3,22 @@ import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
+import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const code = route.params.code
+
+// Payment reminders (manual "send now" here, and the scheduled chaser) are
+// a Growth-plan+ feature (see backend config/plans.js) - the real
+// enforcement is server-side in InvoiceService.sendReminder, which this
+// mirrors so a disallowed plan sees an upgrade link instead of a button
+// that will just 403. Strictly `=== true` so it starts hidden rather than
+// flashing on before planDetails has loaded from refreshEntity() below.
+const allowReminders = computed(() => auth.entity?.planDetails?.allowReminders === true)
 
 const invoice = ref(null)
 const transactions = ref(null)
@@ -38,7 +48,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(() => {
+  load()
+  auth.refreshEntity().catch(() => null)
+})
 
 async function downloadPdf() {
   busy.value = true
@@ -202,13 +215,21 @@ async function sendReminder() {
           <button class="btn-primary" :disabled="busy" @click="downloadPdf">Download PDF</button>
           <button class="btn-secondary" @click="copyLink">{{ copied ? 'Copied!' : 'Copy payment link' }}</button>
           <button
-            v-if="canSendReminder"
+            v-if="canSendReminder && allowReminders"
             class="btn-secondary"
             :disabled="reminderStatus === 'sending'"
             @click="sendReminder"
           >
             {{ reminderStatus === 'sending' ? 'Sending…' : 'Send reminder' }}
           </button>
+          <router-link
+            v-else-if="canSendReminder"
+            :to="{ name: 'billing' }"
+            class="btn-secondary"
+            title="Payment reminders are a Growth-plan feature"
+          >
+            Upgrade to send reminders
+          </router-link>
           <select class="input w-auto" :value="invoice.status" :disabled="busy" @change="updateStatus($event.target.value)">
             <option value="draft">Mark as draft</option>
             <option value="sent">Mark as sent</option>
