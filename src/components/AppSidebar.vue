@@ -1,7 +1,6 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import ThemeToggle from './ThemeToggle.vue'
 
 const auth = useAuthStore()
 
@@ -16,10 +15,12 @@ onMounted(() => {
 // A full reload is deliberate here, not a reactive re-fetch - switching
 // workspace changes which business's data every page on-screen is looking
 // at, and not every view is built to react to that mid-session. Reloading
-// is simple and guarantees nothing shows stale cross-business data.
+// the current page (rather than redirecting to a fixed path) is simple and
+// guarantees nothing shows stale cross-business data, without caring
+// whether the acting user was on the dashboard, an invoice, etc.
 function onWorkspaceChange(e) {
   auth.switchWorkspace(e.target.value || null).then(() => {
-    window.location.href = '/'
+    window.location.reload()
   })
 }
 
@@ -37,15 +38,12 @@ const nav = [
 </script>
 
 <template>
-  <aside class="flex h-full w-60 shrink-0 flex-col border-r border-ink-200 bg-white dark:bg-ink-100">
-    <div class="flex items-center justify-between gap-2 px-5 py-5">
-      <div class="flex items-center gap-2">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-lilac-600 text-sm font-bold text-white">
-          In
-        </div>
-        <span class="text-sm font-semibold text-ink-900">Invoecr</span>
+  <aside class="flex h-full w-60 shrink-0 flex-col border-r border-ink-200 bg-white">
+    <div class="flex items-center gap-2 px-5 py-5">
+      <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-lilac-600 text-sm font-bold text-white">
+        In
       </div>
-      <ThemeToggle />
+      <span class="text-sm font-semibold text-ink-900">Invoecr</span>
     </div>
 
     <nav class="flex-1 space-y-0.5 px-3">

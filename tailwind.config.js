@@ -1,12 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  // Class-based dark mode (not `media`) so a manual toggle (see
-  // stores/theme.js) always wins over the OS setting, and so it can be
-  // persisted. Toggling `.dark` on <html> flips the `--ink-*` CSS variables
-  // below, which every existing `text-ink-*`/`bg-ink-*`/`border-ink-*` usage
-  // across the app already reads from - so most views need zero per-file
-  // dark: variants. Lilac accents and status colors stay fixed in both themes.
-  darkMode: 'class',
+  // No dark mode, deliberately - this app used to ship a class-based dark
+  // theme plus a manual toggle, but paired with the lilac accent below it
+  // kept getting read by customers as a generic "AI-app-template" look
+  // rather than invoicing software for their business, so it was removed.
+  // If dark mode ever comes back: re-add `darkMode: 'class'` here and
+  // restore the `.dark` CSS-variable block this used to read from in
+  // style.css (see git history around the removal commit).
   content: ['./index.html', './src/**/*.{vue,js}'],
   theme: {
     extend: {
@@ -15,12 +15,9 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        // Supabase-style neutral surface/border scale, but on a white base
-        // instead of Supabase's dark theme. Values come from CSS variables
-        // (defined in style.css for :root and .dark) rather than fixed hex,
-        // so the same scale can mean "light gray on white" in light mode and
-        // "dark charcoal on near-black" in dark mode without changing any
-        // class names in the views that use it.
+        // Supabase-style neutral surface/border scale on a white base.
+        // Values come from CSS variables (defined in style.css) rather
+        // than fixed hex so the whole scale can be retuned in one place.
         ink: {
           50: 'rgb(var(--ink-50) / <alpha-value>)',
           100: 'rgb(var(--ink-100) / <alpha-value>)',
