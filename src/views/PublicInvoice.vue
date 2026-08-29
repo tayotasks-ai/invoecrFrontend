@@ -105,6 +105,9 @@ async function payNow() {
           <div class="mt-4 space-y-1 text-sm text-ink-500">
             <div class="flex justify-between"><span>Subtotal</span><span>{{ formatMoney(invoice.subtotal, invoice.currency) }}</span></div>
             <div class="flex justify-between"><span>Tax</span><span>{{ formatMoney(invoice.tax, invoice.currency) }}</span></div>
+            <div v-if="invoice.paymentFee > 0" class="flex justify-between">
+              <span>Payment processing fee</span><span>{{ formatMoney(invoice.paymentFee, invoice.currency) }}</span>
+            </div>
             <div class="flex justify-between text-base font-semibold text-ink-800"><span>Total</span><span>{{ formatMoney(invoice.total, invoice.currency) }}</span></div>
             <template v-if="hasPartialPayment">
               <div class="flex justify-between text-emerald-600"><span>Paid so far</span><span>-{{ formatMoney(amountPaid, invoice.currency) }}</span></div>
