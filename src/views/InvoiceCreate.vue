@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../lib/api'
 import { formatMoney } from '../lib/format'
+import { grossUpForPaystackFee } from '../lib/paystackFee'
 
 const router = useRouter()
 
@@ -80,7 +81,11 @@ function inventoryStockFor(id) {
 const subtotal = computed(() =>
   items.value.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
 )
-const total = computed(() => subtotal.value + (Number(form.value.tax) || 0))
+// Preview only - the backend recomputes and persists the authoritative
+// fee/total on creation (invoice.model.js), this just shows the business
+// what their customer will actually be asked to pay before they hit submit.
+const paymentFee = computed(() => grossUpForPaystackFee(subtotal.value + (Number(form.value.tax) || 0)).fee)
+const total = computed(() => subtotal.value + (Number(form.value.tax) || 0) + paymentFee.value)
 
 async function onSubmit() {
   error.value = ''
@@ -289,14 +294,19 @@ async function onSubmit() {
           </div>
         </div>
 
-        <div class="mt-4 flex items-center justify-end gap-6 border-t border-ink-100 pt-4 text-sm">
+        <div class="mt-4 flex flex-wrap items-center justify-end gap-6 border-t border-ink-100 pt-4 text-sm">
           <span class="text-ink-500">Subtotal: <strong class="text-ink-800">{{ formatMoney(subtotal, form.currency) }}</strong></span>
           <label class="flex items-center gap-2">
             Tax
             <input v-model.number="form.tax" type="number" min="0" step="0.01" class="input w-28" />
           </label>
+          <span class="text-ink-500">Payment fee: <strong class="text-ink-800">{{ formatMoney(paymentFee, form.currency) }}</strong></span>
           <span class="text-ink-500">Total: <strong class="text-lilac-700">{{ formatMoney(total, form.currency) }}</strong></span>
         </div>
+        <p class="mt-2 text-right text-xs text-ink-400">
+          The payment fee is Paystack's processing cost, passed on to your customer - you'll still receive
+          {{ formatMoney(subtotal + (Number(form.tax) || 0), form.currency) }} in full.
+        </p>
       </section>
 
       <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>

@@ -151,10 +151,18 @@ async function sendReminder() {
             <p class="mt-1 text-ink-800">{{ formatDate(invoice.dueDate) }}</p>
           </div>
           <div>
-            <p class="text-xs uppercase tracking-wide text-ink-400">Subtotal / Tax</p>
-            <p class="mt-1 text-ink-800">{{ formatMoney(invoice.subtotal, invoice.currency) }} / {{ formatMoney(invoice.tax, invoice.currency) }}</p>
+            <p class="text-xs uppercase tracking-wide text-ink-400">Subtotal / Tax / Fee</p>
+            <p class="mt-1 text-ink-800">
+              {{ formatMoney(invoice.subtotal, invoice.currency) }} / {{ formatMoney(invoice.tax, invoice.currency) }} /
+              {{ formatMoney(invoice.paymentFee || 0, invoice.currency) }}
+            </p>
           </div>
         </div>
+        <p v-if="invoice.paymentFee > 0" class="mt-2 text-xs text-ink-400">
+          Total includes a {{ formatMoney(invoice.paymentFee, invoice.currency) }} payment processing fee, passed on
+          to {{ invoice.customer?.name || 'the customer' }} - you receive
+          {{ formatMoney(invoice.subtotal + invoice.tax, invoice.currency) }} in full.
+        </p>
 
         <div class="mt-6 overflow-hidden rounded-md border border-ink-100">
           <table class="w-full text-left text-sm">
