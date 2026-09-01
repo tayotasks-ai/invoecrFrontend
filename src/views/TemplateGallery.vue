@@ -12,6 +12,15 @@ const error = ref('')
 const savingId = ref('')
 const previewingId = ref('')
 
+// In-page modal rather than window.open(url, '_blank') - opening a blob URL
+// in a new tab only works if the browser doesn't treat it as a popup, and
+// since this fires after an `await` (the PDF fetch), some browsers no
+// longer count it as a direct result of the click and silently block it.
+// An <iframe> in a modal has no such popup-blocker risk.
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewName = ref('')
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -46,15 +55,20 @@ async function preview(template) {
   try {
     const response = await api.get(`/entity/templates/${template.id}/preview`, { responseType: 'blob' })
     const blob = response instanceof Blob ? response : new Blob([response])
-    const url = window.URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    // Give the new tab a moment to load the blob before revoking it.
-    setTimeout(() => window.URL.revokeObjectURL(url), 30000)
+    previewUrl.value = window.URL.createObjectURL(blob)
+    previewName.value = template.name
+    previewOpen.value = true
   } catch (e) {
     error.value = e.message
   } finally {
     previewingId.value = ''
   }
+}
+
+function closePreview() {
+  previewOpen.value = false
+  if (previewUrl.value) window.URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = ''
 }
 </script>
 
@@ -138,6 +152,28 @@ async function preview(template) {
             </router-link>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Preview modal - an <iframe> onto the PDF blob rather than a new tab
+         (see preview()'s comment on why: popup blockers can silently eat a
+         window.open() that happens after an await). -->
+    <div
+      v-if="previewOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4"
+      @click.self="closePreview"
+    >
+      <div class="flex h-full max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-card">
+        <div class="flex items-center justify-between border-b border-ink-100 px-5 py-3">
+          <p class="text-sm font-semibold text-ink-800">{{ previewName }} - preview</p>
+          <div class="flex items-center gap-3">
+            <a :href="previewUrl" download="invoice-preview.pdf" class="text-sm font-medium text-lilac-600 hover:text-lilac-700">
+              Download
+            </a>
+            <button class="btn-ghost px-2" @click="closePreview">&times;</button>
+          </div>
+        </div>
+        <iframe :src="previewUrl" class="flex-1 border-0" title="Invoice template preview" />
       </div>
     </div>
   </div>

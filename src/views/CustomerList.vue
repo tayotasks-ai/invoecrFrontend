@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState.vue'
 
 const loading = ref(true)
 const customers = ref([])
+const exporting = ref(false)
 
 onMounted(async () => {
   try {
@@ -15,11 +16,32 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function exportCsv() {
+  exporting.value = true
+  try {
+    const response = await api.get('/customer/export/csv', { responseType: 'blob' })
+    const blob = response instanceof Blob ? response : new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'customers.csv'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
   <div>
-    <h1 class="text-lg font-semibold text-ink-900">Customers</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-lg font-semibold text-ink-900">Customers</h1>
+      <button v-if="customers.length" class="btn-secondary" :disabled="exporting" @click="exportCsv">
+        {{ exporting ? 'Exporting…' : 'Export CSV' }}
+      </button>
+    </div>
     <p class="mt-1 text-sm text-ink-400">
       Customers are added automatically the first time you invoice them — there's no separate "add customer" step.
     </p>
@@ -48,7 +70,12 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in customers" :key="c._id" class="border-b border-ink-100 last:border-0">
+            <tr
+              v-for="c in customers"
+              :key="c._id"
+              class="cursor-pointer border-b border-ink-100 last:border-0 hover:bg-lilac-50/40"
+              @click="$router.push({ name: 'customer-detail', params: { code: c.code } })"
+            >
               <td class="px-4 py-3 text-ink-700">{{ c.name }}</td>
               <td class="px-4 py-3 text-ink-500">{{ c.email || '—' }}</td>
               <td class="px-4 py-3 text-ink-500">{{ c.phone || '—' }}</td>

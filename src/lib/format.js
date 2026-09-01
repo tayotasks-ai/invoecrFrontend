@@ -20,4 +20,8 @@ export const STATUS_STYLES = {
   paid: 'bg-emerald-100 text-emerald-700',
   'partially-paid': 'bg-amber-100 text-amber-700',
   overdue: 'bg-red-100 text-red-700',
+  // Expense statuses - 'paid' above is shared with invoices/quotes.
+  pending: 'bg-ink-100 text-ink-600',
+  submitted: 'bg-amber-100 text-amber-700',
+  cancelled: 'bg-ink-100 text-ink-400',
 }

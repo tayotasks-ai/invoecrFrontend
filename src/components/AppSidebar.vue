@@ -10,6 +10,13 @@ const auth = useAuthStore()
 // authenticated page.
 onMounted(() => {
   auth.loadMyBusinesses()
+  // The cached entity from sign-in doesn't carry `isRoot` (that's computed
+  // server-side by EntityService.getMe, not part of the sign-in response) -
+  // refreshing here, in the one component guaranteed to mount on every
+  // authenticated page, is what makes the Root link below appear reliably
+  // right after a root account logs in, regardless of which page they land
+  // on first.
+  auth.refreshEntity().catch(() => null)
 })
 
 // A full reload is deliberate here, not a reactive re-fetch - switching
@@ -27,7 +34,9 @@ function onWorkspaceChange(e) {
 const nav = [
   { name: 'dashboard', label: 'Overview', icon: 'M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z' },
   { name: 'invoices', label: 'Invoices', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { name: 'recurring-invoices', label: 'Recurring', icon: 'M4 4v5h5M20 20v-5h-5M4.5 9a7.5 7.5 0 0113-4.5L20 7M19.5 15a7.5 7.5 0 01-13 4.5L4 17' },
   { name: 'quotes', label: 'Quotes', icon: 'M9 7h6m-6 4h4m-7 8l3-3h9a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v11z' },
+  { name: 'expenses', label: 'Expenses', icon: 'M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 2v8m0 0v2m0-2c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { name: 'customers', label: 'Customers', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1a4 4 0 100-8 4 4 0 000 8zm6 4v-2a4 4 0 00-3-3.87M7 8a4 4 0 108 0 4 4 0 00-8 0z' },
   { name: 'inventory', label: 'Inventory', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
   { name: 'bank-accounts', label: 'Bank accounts', icon: 'M3 10h18M5 6l7-3 7 3M5 10v9m4-9v9m6-9v9m4-9v9M3 19h18' },
@@ -81,6 +90,20 @@ const nav = [
           You're viewing {{ auth.businessName }}'s books as their accountant.
         </p>
       </div>
+
+      <!-- Only rendered for the handful of accounts whose email is on the
+           backend's ROOT_ADMIN_EMAILS allowlist (see EntityService.getMe's
+           computed `isRoot`) - invisible to every ordinary merchant. -->
+      <router-link
+        v-if="auth.entity?.isRoot === true"
+        :to="{ name: 'root-merchants' }"
+        class="mb-2 flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+      >
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        Root
+      </router-link>
 
       <div class="flex items-center gap-2 rounded-md px-2 py-2">
         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-lilac-100 text-xs font-semibold text-lilac-700">

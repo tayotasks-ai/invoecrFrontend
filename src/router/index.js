@@ -25,10 +25,15 @@ const routes = [
       { path: 'invoices', name: 'invoices', component: () => import('../views/InvoiceList.vue') },
       { path: 'invoices/new', name: 'invoice-create', component: () => import('../views/InvoiceCreate.vue') },
       { path: 'invoices/:code', name: 'invoice-detail', component: () => import('../views/InvoiceDetail.vue') },
+      { path: 'recurring-invoices', name: 'recurring-invoices', component: () => import('../views/RecurringInvoiceList.vue') },
+      { path: 'recurring-invoices/new', name: 'recurring-invoice-create', component: () => import('../views/RecurringInvoiceCreate.vue') },
       { path: 'quotes', name: 'quotes', component: () => import('../views/QuoteList.vue') },
       { path: 'quotes/new', name: 'quote-create', component: () => import('../views/QuoteCreate.vue') },
       { path: 'quotes/:code', name: 'quote-detail', component: () => import('../views/QuoteDetail.vue') },
+      { path: 'expenses', name: 'expenses', component: () => import('../views/ExpenseList.vue') },
+      { path: 'expenses/:code', name: 'expense-detail', component: () => import('../views/ExpenseDetail.vue') },
       { path: 'customers', name: 'customers', component: () => import('../views/CustomerList.vue') },
+      { path: 'customers/:code', name: 'customer-detail', component: () => import('../views/CustomerDetail.vue') },
       { path: 'inventory', name: 'inventory', component: () => import('../views/Inventory.vue') },
       { path: 'bank-accounts', name: 'bank-accounts', component: () => import('../views/BankAccounts.vue') },
       { path: 'templates', name: 'templates', component: () => import('../views/TemplateGallery.vue') },
@@ -74,6 +79,18 @@ const routes = [
     component: () => import('../views/PublicQuote.vue'),
   },
   {
+    // Matches the link the backend emails a vendor when a business requests
+    // their payment details: `${APP_URL}/pay-expense/${code}`. Public, no
+    // auth - the vendor has no invoecr account, they're just filling in
+    // where to send money. Deliberately its own top-level path (not nested
+    // under the authenticated /expenses routes) for the same reason
+    // /payment/:code and /quote/:code are separate from their authenticated
+    // counterparts.
+    path: '/pay-expense/:code',
+    name: 'pay-expense',
+    component: () => import('../views/PayExpense.vue'),
+  },
+  {
     // Matches the link in an accountant-invite email:
     // `${APP_URL}/accept-accountant-invite/${token}`. No `requiresAuth` -
     // the page itself handles both the signed-out (prompt to sign in/up,
@@ -82,6 +99,23 @@ const routes = [
     path: '/accept-accountant-invite/:token',
     name: 'accept-accountant-invite',
     component: () => import('../views/AcceptAccountantInvite.vue'),
+  },
+  {
+    // The root panel - not a separate auth domain. It's gated by the same
+    // sign-in/JWT as the rest of the app (meta.requiresAuth below), plus
+    // meta.requiresRoot, which the guard checks against
+    // auth.entity?.isRoot - a server-computed flag (see
+    // EntityService.getMe) that's only true when this account's email is
+    // on the backend's ROOT_ADMIN_EMAILS allowlist. A different layout
+    // (RootLayout, red not lilac) so it's visually unmistakable which mode
+    // you're in, but the same token, the same store, the same session.
+    path: '/root',
+    component: () => import('../layouts/RootLayout.vue'),
+    meta: { requiresAuth: true, requiresRoot: true },
+    children: [
+      { path: '', name: 'root-merchants', component: () => import('../views/RootMerchantList.vue') },
+      { path: 'merchants/:code', name: 'root-merchant-detail', component: () => import('../views/RootMerchantDetail.vue') },
+    ],
   },
   {
     path: '/:pathMatch(.*)*',
@@ -95,7 +129,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'sign-in', query: { redirect: to.fullPath } }
@@ -107,6 +141,22 @@ router.beforeEach((to) => {
   if ((to.meta.guestOnly || to.name === 'landing') && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }
+
+  // Root panel - client-side convenience only, the real gate is the
+  // backend's Authorization.requireRoot on every /admin/* call. But
+  // `auth.entity` here can be a stale snapshot from localStorage (sign-in's
+  // response never carries `isRoot` - only GET /entity/me computes it), so
+  // a direct visit/refresh on /root would otherwise bounce a genuine root
+  // account away before AppSidebar's own refresh has had a chance to run.
+  // Fetch a fresh entity right here instead of trusting the cache, but only
+  // on this branch - every other navigation stays synchronous.
+  if (to.meta.requiresRoot && auth.entity?.isRoot !== true) {
+    await auth.refreshEntity().catch(() => null)
+    if (auth.entity?.isRoot !== true) {
+      return { name: 'dashboard' }
+    }
+  }
+
   return true
 })
 
