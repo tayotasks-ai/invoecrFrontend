@@ -101,6 +101,23 @@ const routes = [
     component: () => import('../views/AcceptAccountantInvite.vue'),
   },
   {
+    // The root panel - not a separate auth domain. It's gated by the same
+    // sign-in/JWT as the rest of the app (meta.requiresAuth below), plus
+    // meta.requiresRoot, which the guard checks against
+    // auth.entity?.isRoot - a server-computed flag (see
+    // EntityService.getMe) that's only true when this account's email is
+    // on the backend's ROOT_ADMIN_EMAILS allowlist. A different layout
+    // (RootLayout, red not lilac) so it's visually unmistakable which mode
+    // you're in, but the same token, the same store, the same session.
+    path: '/root',
+    component: () => import('../layouts/RootLayout.vue'),
+    meta: { requiresAuth: true, requiresRoot: true },
+    children: [
+      { path: '', name: 'root-merchants', component: () => import('../views/RootMerchantList.vue') },
+      { path: 'merchants/:code', name: 'root-merchant-detail', component: () => import('../views/RootMerchantDetail.vue') },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('../views/NotFound.vue'),
@@ -112,7 +129,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'sign-in', query: { redirect: to.fullPath } }
@@ -124,6 +141,22 @@ router.beforeEach((to) => {
   if ((to.meta.guestOnly || to.name === 'landing') && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }
+
+  // Root panel - client-side convenience only, the real gate is the
+  // backend's Authorization.requireRoot on every /admin/* call. But
+  // `auth.entity` here can be a stale snapshot from localStorage (sign-in's
+  // response never carries `isRoot` - only GET /entity/me computes it), so
+  // a direct visit/refresh on /root would otherwise bounce a genuine root
+  // account away before AppSidebar's own refresh has had a chance to run.
+  // Fetch a fresh entity right here instead of trusting the cache, but only
+  // on this branch - every other navigation stays synchronous.
+  if (to.meta.requiresRoot && auth.entity?.isRoot !== true) {
+    await auth.refreshEntity().catch(() => null)
+    if (auth.entity?.isRoot !== true) {
+      return { name: 'dashboard' }
+    }
+  }
+
   return true
 })
 

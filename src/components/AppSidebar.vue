@@ -10,6 +10,13 @@ const auth = useAuthStore()
 // authenticated page.
 onMounted(() => {
   auth.loadMyBusinesses()
+  // The cached entity from sign-in doesn't carry `isRoot` (that's computed
+  // server-side by EntityService.getMe, not part of the sign-in response) -
+  // refreshing here, in the one component guaranteed to mount on every
+  // authenticated page, is what makes the Root link below appear reliably
+  // right after a root account logs in, regardless of which page they land
+  // on first.
+  auth.refreshEntity().catch(() => null)
 })
 
 // A full reload is deliberate here, not a reactive re-fetch - switching
@@ -83,6 +90,20 @@ const nav = [
           You're viewing {{ auth.businessName }}'s books as their accountant.
         </p>
       </div>
+
+      <!-- Only rendered for the handful of accounts whose email is on the
+           backend's ROOT_ADMIN_EMAILS allowlist (see EntityService.getMe's
+           computed `isRoot`) - invisible to every ordinary merchant. -->
+      <router-link
+        v-if="auth.entity?.isRoot === true"
+        :to="{ name: 'root-merchants' }"
+        class="mb-2 flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+      >
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        Root
+      </router-link>
 
       <div class="flex items-center gap-2 rounded-md px-2 py-2">
         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-lilac-100 text-xs font-semibold text-lilac-700">
