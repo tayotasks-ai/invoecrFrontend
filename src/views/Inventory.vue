@@ -5,6 +5,7 @@ import { formatMoney } from '../lib/format'
 import { useAuthStore } from '../stores/auth'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { confirmDialog } from '../composables/useConfirm'
 
 const auth = useAuthStore()
 // Inventory is a Growth-plan+ feature (see backend config/plans.js). Items
@@ -96,7 +97,13 @@ async function onSubmit() {
 }
 
 async function removeItem(item) {
-  if (!confirm(`Delete "${item.name}" from inventory? This cannot be undone.`)) return
+  const ok = await confirmDialog({
+    title: `Delete "${item.name}" from inventory?`,
+    message: 'This cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await api.delete(`/inventory/${item.code}`)
     await load()

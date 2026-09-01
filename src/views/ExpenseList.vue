@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
 import StatusBadge from '../components/StatusBadge.vue'
+import StatCard from '../components/StatCard.vue'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -10,6 +11,7 @@ const loading = ref(true)
 const error = ref('')
 const expenses = ref([])
 const status = ref('')
+const stats = ref(null)
 
 const STATUS_OPTIONS = ['', 'pending', 'submitted', 'paid', 'cancelled']
 
@@ -26,6 +28,20 @@ async function load() {
 }
 onMounted(load)
 watch(status, load)
+
+// Separate from the filtered list load above - the stat cards always show
+// totals across every status, regardless of which status filter the table
+// itself is currently narrowed to, so this isn't re-run on `status` changes.
+// Best-effort: a failed/slow stats call shouldn't block the list from
+// showing.
+onMounted(() => {
+  api
+    .get('/expense/stats')
+    .then((res) => {
+      stats.value = res.data
+    })
+    .catch(() => {})
+})
 
 const showCreate = ref(false)
 const createForm = ref({ vendorEmail: '', vendorName: '', description: '' })
@@ -65,6 +81,24 @@ async function submitCreate() {
         </p>
       </div>
       <button class="btn-primary flex-none" @click="openCreate">+ New expense</button>
+    </div>
+
+    <div v-if="stats" class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <StatCard
+        label="Awaiting vendor details"
+        :value="stats.pending.count"
+        hint="Requests sent, waiting for the vendor to fill in amount + bank details"
+      />
+      <StatCard
+        label="Ready to pay"
+        :value="formatMoney(stats.submitted.total, stats.currency)"
+        :hint="`${stats.submitted.count} expense${stats.submitted.count === 1 ? '' : 's'} with details on file`"
+      />
+      <StatCard
+        label="Paid this month"
+        :value="formatMoney(stats.paidThisMonth.total, stats.currency)"
+        :hint="`${stats.paidThisMonth.count} expense${stats.paidThisMonth.count === 1 ? '' : 's'} paid`"
+      />
     </div>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">

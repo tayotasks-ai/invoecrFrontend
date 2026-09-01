@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth'
+import { confirmDialog } from '../composables/useConfirm'
 
 const auth = useAuthStore()
 onMounted(() => {
@@ -146,7 +147,13 @@ async function inviteAccountant() {
 }
 
 async function revokeAccountant(access) {
-  if (!confirm(`Remove ${access.accountant?.name || access.invitedEmail}'s access to your books?`)) return
+  const ok = await confirmDialog({
+    title: `Remove ${access.accountant?.name || access.invitedEmail}'s access?`,
+    message: `They'll lose access to your books immediately.`,
+    confirmLabel: 'Remove access',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await api.delete(`/entity/accountants/${access._id}`)
     await loadAccountants()

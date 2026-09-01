@@ -6,6 +6,7 @@ import { formatMoney, formatDate } from '../lib/format'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
+import { confirmDialog } from '../composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,7 +87,13 @@ async function updateStatus(status) {
 }
 
 async function removeInvoice() {
-  if (!confirm('Delete this invoice? This cannot be undone.')) return
+  const ok = await confirmDialog({
+    title: 'Delete this invoice?',
+    message: 'This cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  })
+  if (!ok) return
   busy.value = true
   try {
     await api.delete(`/invoice/${code}`)
@@ -144,7 +151,13 @@ async function submitRecordPayment() {
 }
 
 async function voidPayment(transactionId) {
-  if (!confirm('Void this payment? The invoice balance will go back up.')) return
+  const ok = await confirmDialog({
+    title: 'Void this payment?',
+    message: 'The invoice balance will go back up.',
+    confirmLabel: 'Void payment',
+    danger: true,
+  })
+  if (!ok) return
   busy.value = true
   try {
     await api.post(`/invoice/${code}/void-payment/${transactionId}`)

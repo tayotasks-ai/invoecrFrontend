@@ -5,6 +5,7 @@ import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
+import { confirmDialog } from '../composables/useConfirm'
 
 const route = useRoute()
 const code = route.params.code
@@ -41,7 +42,14 @@ async function copyLink() {
 }
 
 async function cancelRequest() {
-  if (!confirm('Cancel this payment request? The link will stop working.')) return
+  const ok = await confirmDialog({
+    title: 'Cancel this payment request?',
+    message: 'The link will stop working.',
+    confirmLabel: 'Cancel request',
+    cancelLabel: 'Keep it',
+    danger: true,
+  })
+  if (!ok) return
   busy.value = true
   try {
     await api.post(`/expense/${code}/cancel`)
