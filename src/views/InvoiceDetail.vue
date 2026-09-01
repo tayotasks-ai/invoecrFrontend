@@ -107,6 +107,55 @@ const reminderStatus = ref('') // '', 'sending', 'sent', 'error'
 const reminderMessage = ref('')
 const canSendReminder = computed(() => invoice.value && invoice.value.status !== 'paid')
 
+// Record a payment collected outside Paystack (bank transfer, cash, POS) -
+// see InvoiceService.recordManualPayment. Only offered once the invoice has
+// actually been sent (nothing owed on a draft) and still has a balance.
+const canRecordPayment = computed(() => invoice.value && invoice.value.status !== 'draft' && balanceDue.value > 0)
+const showRecordPayment = ref(false)
+const recordForm = ref({ amount: 0, method: 'bank_transfer', reference: '', note: '' })
+const recordBusy = ref(false)
+const recordError = ref('')
+
+function openRecordPayment() {
+  recordForm.value = { amount: balanceDue.value, method: 'bank_transfer', reference: '', note: '' }
+  recordError.value = ''
+  showRecordPayment.value = true
+}
+function closeRecordPayment() {
+  showRecordPayment.value = false
+}
+async function submitRecordPayment() {
+  recordBusy.value = true
+  recordError.value = ''
+  try {
+    await api.post(`/invoice/${code}/record-payment`, {
+      amount: Number(recordForm.value.amount),
+      method: recordForm.value.method,
+      reference: recordForm.value.reference || undefined,
+      note: recordForm.value.note || undefined,
+    })
+    showRecordPayment.value = false
+    await load()
+  } catch (e) {
+    recordError.value = e.message
+  } finally {
+    recordBusy.value = false
+  }
+}
+
+async function voidPayment(transactionId) {
+  if (!confirm('Void this payment? The invoice balance will go back up.')) return
+  busy.value = true
+  try {
+    await api.post(`/invoice/${code}/void-payment/${transactionId}`)
+    await load()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+
 async function sendReminder() {
   reminderStatus.value = 'sending'
   reminderMessage.value = ''
@@ -230,11 +279,17 @@ async function sendReminder() {
           >
             Upgrade to send reminders
           </router-link>
+          <button v-if="canRecordPayment" class="btn-secondary" @click="openRecordPayment">Record payment</button>
+          <!-- 'paid'/'partially-paid' were dropped from this dropdown - setting
+               status directly here used to leave amountPaid untouched, which
+               silently broke the revenue/collected numbers on the dashboard
+               (they're computed from real Transaction records, not from
+               invoice.status). "Record payment" above is now the only path
+               that marks an invoice paid, so amountPaid and status can never
+               drift apart. -->
           <select class="input w-auto" :value="invoice.status" :disabled="busy" @change="updateStatus($event.target.value)">
             <option value="draft">Mark as draft</option>
             <option value="sent">Mark as sent</option>
-            <option value="paid">Mark as paid</option>
-            <option value="partially-paid">Mark as partially paid</option>
             <option value="overdue">Mark as overdue</option>
           </select>
           <button class="btn-danger ml-auto" :disabled="busy" @click="removeInvoice">Delete</button>
@@ -260,14 +315,19 @@ async function sendReminder() {
             <tr>
               <th class="px-4 py-2 font-medium">Date</th>
               <th class="px-4 py-2 font-medium">Amount</th>
+              <th class="px-4 py-2 font-medium">Channel</th>
               <th class="px-4 py-2 font-medium">Reference</th>
               <th class="px-4 py-2 font-medium">Status</th>
+              <th class="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="t in transactions" :key="t._id" class="border-t border-ink-100">
               <td class="px-4 py-2.5 text-ink-500">{{ formatDate(t.createdAt) }}</td>
               <td class="px-4 py-2.5 text-ink-700">{{ formatMoney(t.amount, t.currency) }}</td>
+              <td class="px-4 py-2.5 text-ink-500">
+                {{ t.channel === 'MANUAL' ? (t.method || 'manual').replace('_', ' ') : (t.channel || '—').toLowerCase() }}
+              </td>
               <td class="px-4 py-2.5 font-mono text-xs text-ink-400">{{ t.reference }}</td>
               <td class="px-4 py-2.5">
                 <span
@@ -281,9 +341,67 @@ async function sendReminder() {
                   {{ t.status }}
                 </span>
               </td>
+              <td class="px-4 py-2.5 text-right">
+                <button
+                  v-if="t.channel === 'MANUAL' && t.status === 'SUCCESS'"
+                  class="text-xs font-medium text-ink-400 hover:text-red-600"
+                  :disabled="busy"
+                  @click="voidPayment(t._id)"
+                >
+                  Void
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Record-payment modal - bank transfer/cash/POS, i.e. anything
+           collected outside Paystack (see recordManualPayment's comment on
+           why Nigerian SMEs need this). -->
+      <div
+        v-if="showRecordPayment"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4"
+        @click.self="closeRecordPayment"
+      >
+        <div class="w-full max-w-sm rounded-xl bg-white p-5 shadow-card">
+          <h2 class="text-sm font-semibold text-ink-800">Record a payment</h2>
+          <p class="mt-1 text-xs text-ink-400">For money collected outside Paystack - bank transfer, cash, or POS.</p>
+
+          <div class="mt-4 space-y-3">
+            <div>
+              <label class="label">Amount received</label>
+              <input v-model.number="recordForm.amount" type="number" min="0.01" :max="balanceDue" step="0.01" class="input" />
+              <p class="mt-1 text-xs text-ink-400">Balance due: {{ formatMoney(balanceDue, invoice.currency) }}</p>
+            </div>
+            <div>
+              <label class="label">How was it paid?</label>
+              <select v-model="recordForm.method" class="input">
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="cash">Cash</option>
+                <option value="pos">POS</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Reference <span class="text-ink-400">(optional)</span></label>
+              <input v-model="recordForm.reference" type="text" class="input" placeholder="e.g. bank transfer narration" />
+            </div>
+            <div>
+              <label class="label">Note <span class="text-ink-400">(optional)</span></label>
+              <input v-model="recordForm.note" type="text" class="input" />
+            </div>
+          </div>
+
+          <p v-if="recordError" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{{ recordError }}</p>
+
+          <div class="mt-5 flex justify-end gap-2">
+            <button class="btn-ghost" :disabled="recordBusy" @click="closeRecordPayment">Cancel</button>
+            <button class="btn-primary" :disabled="recordBusy" @click="submitRecordPayment">
+              {{ recordBusy ? 'Recording…' : 'Record payment' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <p v-if="error" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>

@@ -25,10 +25,15 @@ const routes = [
       { path: 'invoices', name: 'invoices', component: () => import('../views/InvoiceList.vue') },
       { path: 'invoices/new', name: 'invoice-create', component: () => import('../views/InvoiceCreate.vue') },
       { path: 'invoices/:code', name: 'invoice-detail', component: () => import('../views/InvoiceDetail.vue') },
+      { path: 'recurring-invoices', name: 'recurring-invoices', component: () => import('../views/RecurringInvoiceList.vue') },
+      { path: 'recurring-invoices/new', name: 'recurring-invoice-create', component: () => import('../views/RecurringInvoiceCreate.vue') },
       { path: 'quotes', name: 'quotes', component: () => import('../views/QuoteList.vue') },
       { path: 'quotes/new', name: 'quote-create', component: () => import('../views/QuoteCreate.vue') },
       { path: 'quotes/:code', name: 'quote-detail', component: () => import('../views/QuoteDetail.vue') },
+      { path: 'expenses', name: 'expenses', component: () => import('../views/ExpenseList.vue') },
+      { path: 'expenses/:code', name: 'expense-detail', component: () => import('../views/ExpenseDetail.vue') },
       { path: 'customers', name: 'customers', component: () => import('../views/CustomerList.vue') },
+      { path: 'customers/:code', name: 'customer-detail', component: () => import('../views/CustomerDetail.vue') },
       { path: 'inventory', name: 'inventory', component: () => import('../views/Inventory.vue') },
       { path: 'bank-accounts', name: 'bank-accounts', component: () => import('../views/BankAccounts.vue') },
       { path: 'templates', name: 'templates', component: () => import('../views/TemplateGallery.vue') },
@@ -72,6 +77,18 @@ const routes = [
     path: '/quote/:code',
     name: 'public-quote',
     component: () => import('../views/PublicQuote.vue'),
+  },
+  {
+    // Matches the link the backend emails a vendor when a business requests
+    // their payment details: `${APP_URL}/pay-expense/${code}`. Public, no
+    // auth - the vendor has no invoecr account, they're just filling in
+    // where to send money. Deliberately its own top-level path (not nested
+    // under the authenticated /expenses routes) for the same reason
+    // /payment/:code and /quote/:code are separate from their authenticated
+    // counterparts.
+    path: '/pay-expense/:code',
+    name: 'pay-expense',
+    component: () => import('../views/PayExpense.vue'),
   },
   {
     // Matches the link in an accountant-invite email:

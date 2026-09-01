@@ -14,6 +14,14 @@ const loading = ref(true)
 const error = ref('')
 const invoices = ref([])
 const overview = ref(null)
+const actionItems = ref([])
+const actionItemsTotal = ref(0)
+
+const SEVERITY_DOT = {
+  high: 'bg-red-500',
+  medium: 'bg-amber-500',
+  low: 'bg-ink-300',
+}
 
 onMounted(async () => {
   try {
@@ -34,6 +42,19 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // Best-effort, separate from the block above: a Todoist-style feed of
+  // whatever this app already knows needs attention (overdue/due-soon
+  // invoices, low stock, recurring drafts awaiting review - see
+  // ReportingService.getActionItems). Nothing here is typed in by hand, and
+  // a failure to load it shouldn't block the rest of the dashboard.
+  api
+    .get('/reports/action-items')
+    .then((res) => {
+      actionItems.value = res.data?.items || []
+      actionItemsTotal.value = res.data?.totalCount || 0
+    })
+    .catch(() => {})
 })
 
 const currency = computed(() => overview.value?.currency || 'NGN')
@@ -42,6 +63,23 @@ const maxTopCustomer = computed(() =>
 )
 const maxAging = computed(() => Math.max(1, ...(overview.value?.aging || []).map((a) => a.total)))
 const hasOutstanding = computed(() => (overview.value?.cashFlow.outstanding.count || 0) > 0)
+
+const exportingTransactions = ref(false)
+async function exportTransactionsCsv() {
+  exportingTransactions.value = true
+  try {
+    const response = await api.get('/reports/transactions/export/csv', { responseType: 'blob' })
+    const blob = response instanceof Blob ? response : new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'transactions.csv'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } finally {
+    exportingTransactions.value = false
+  }
+}
 
 const AGING_BAR_COLOR = {
   current: 'bg-ink-300',
@@ -66,6 +104,24 @@ const AGING_BAR_COLOR = {
     <p v-else-if="error" class="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
 
     <template v-else>
+      <div v-if="actionItems.length" class="mt-6 card p-5">
+        <h2 class="text-sm font-semibold text-ink-800">Needs your attention</h2>
+        <ul class="mt-3 divide-y divide-ink-100">
+          <li v-for="item in actionItems" :key="item.id">
+            <router-link :to="item.link" class="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 hover:bg-ink-50">
+              <span class="mt-1.5 h-1.5 w-1.5 flex-none rounded-full" :class="SEVERITY_DOT[item.severity]" />
+              <span class="min-w-0">
+                <p class="text-sm font-medium text-ink-800">{{ item.title }}</p>
+                <p class="text-xs text-ink-400">{{ item.detail }}</p>
+              </span>
+            </router-link>
+          </li>
+        </ul>
+        <p v-if="actionItemsTotal > actionItems.length" class="mt-2 text-xs text-ink-400">
+          +{{ actionItemsTotal - actionItems.length }} more
+        </p>
+      </div>
+
       <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           label="Collected this month"
@@ -85,9 +141,14 @@ const AGING_BAR_COLOR = {
       </div>
 
       <div class="mt-6 card p-5">
-        <div class="mb-1">
-          <h2 class="text-sm font-semibold text-ink-800">Revenue</h2>
-          <p class="text-xs text-ink-400">Money collected vs. money invoiced, last 12 months.</p>
+        <div class="mb-1 flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-ink-800">Revenue</h2>
+            <p class="text-xs text-ink-400">Money collected vs. money invoiced, last 12 months.</p>
+          </div>
+          <button class="btn-secondary flex-none" :disabled="exportingTransactions" @click="exportTransactionsCsv">
+            {{ exportingTransactions ? 'Exporting…' : 'Export transactions CSV' }}
+          </button>
         </div>
         <RevenueTrendChart :data="overview.revenueTrend" :currency="currency" />
       </div>

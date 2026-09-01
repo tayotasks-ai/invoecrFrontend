@@ -44,13 +44,38 @@ watch(search, () => {
     load()
   }, 350)
 })
+
+const exporting = ref(false)
+async function exportCsv() {
+  exporting.value = true
+  try {
+    // Respects whatever search/status filter is currently applied -
+    // "export what I'm looking at", not always the full list.
+    const response = await api.get('/invoice/export/csv', {
+      params: { search: search.value || undefined, status: status.value || undefined },
+      responseType: 'blob',
+    })
+    const blob = response instanceof Blob ? response : new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'invoices.csv'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
   <div>
     <div class="flex items-center justify-between">
       <h1 class="text-lg font-semibold text-ink-900">Invoices</h1>
-      <router-link :to="{ name: 'invoice-create' }" class="btn-primary">+ New invoice</router-link>
+      <div class="flex items-center gap-2">
+        <button class="btn-secondary" :disabled="exporting" @click="exportCsv">{{ exporting ? 'Exporting…' : 'Export CSV' }}</button>
+        <router-link :to="{ name: 'invoice-create' }" class="btn-primary">+ New invoice</router-link>
+      </div>
     </div>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">

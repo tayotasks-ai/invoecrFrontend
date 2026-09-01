@@ -159,6 +159,31 @@ async function copyInviteLink() {
   await navigator.clipboard.writeText(lastInviteLink.value)
 }
 
+// Virtual account (Expenses / Accounts Payable) - activates a dedicated
+// bank account for this business via Seerbit. Provisioning only: paying
+// vendors automatically from it isn't built yet, so the copy below is
+// careful not to promise that. Read straight off auth.entity (refreshed
+// after a successful activation) rather than a separate fetch, same
+// pattern as logo/signature above.
+const virtualAccount = computed(() => auth.entity?.virtualAccount || null)
+const vaBvn = ref('')
+const vaBusy = ref(false)
+const vaError = ref('')
+
+async function activateVirtualAccount() {
+  vaError.value = ''
+  vaBusy.value = true
+  try {
+    await api.post('/entity/virtual-account', { bankVerificationNumber: vaBvn.value })
+    vaBvn.value = ''
+    await auth.refreshEntity().catch(() => null)
+  } catch (e) {
+    vaError.value = e.message
+  } finally {
+    vaBusy.value = false
+  }
+}
+
 const staffForm = ref({ first_name: '', last_name: '', email: '', type: 'staff' })
 const invitingStaff = ref(false)
 const staffError = ref('')
@@ -247,6 +272,49 @@ async function addStaff() {
         />
         Send automatic payment reminders for this business
       </label>
+    </section>
+
+    <!-- Virtual account (Expenses / Accounts Payable) -->
+    <section class="card p-5">
+      <h2 class="text-sm font-semibold text-ink-800">Virtual account for paying vendors</h2>
+      <p class="mt-1 text-sm text-ink-400">
+        Activate a dedicated bank account for this business, powered by our banking partner Seerbit, so the vendor
+        payments you owe (see Expenses) can settle somewhere real. This only activates the account for now -
+        automatic payouts from it aren't available yet, so you'll still send transfers yourself and mark expenses
+        as paid from the Expenses page.
+      </p>
+
+      <div v-if="virtualAccount?.status === 'active'" class="mt-4 rounded-md bg-emerald-50 p-3 text-sm">
+        <p class="text-xs font-medium uppercase tracking-wide text-emerald-700">Active</p>
+        <p class="mt-1 text-emerald-900">{{ virtualAccount.accountName }}</p>
+        <p class="text-emerald-800">{{ virtualAccount.accountNumber }} &middot; {{ virtualAccount.bankName }}</p>
+      </div>
+
+      <template v-else>
+        <p v-if="virtualAccount?.status === 'failed'" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+          Last attempt didn't go through: {{ virtualAccount.error }}. You can try again below.
+        </p>
+        <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="activateVirtualAccount">
+          <div class="min-w-[12rem] flex-1">
+            <label class="label">Bank Verification Number (BVN)</label>
+            <input
+              v-model="vaBvn"
+              class="input"
+              inputmode="numeric"
+              maxlength="11"
+              placeholder="11-digit BVN"
+              required
+            />
+          </div>
+          <button type="submit" class="btn-primary flex-none" :disabled="vaBusy || vaBvn.length !== 11">
+            {{ vaBusy ? 'Activating…' : 'Activate virtual account' }}
+          </button>
+        </form>
+        <p class="mt-2 text-xs text-ink-400">
+          Your BVN is sent directly to Seerbit to open the account - invoecr never stores it.
+        </p>
+        <p v-if="vaError" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ vaError }}</p>
+      </template>
     </section>
 
     <!-- FIRS e-invoicing compliance -->
