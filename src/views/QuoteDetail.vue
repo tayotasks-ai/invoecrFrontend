@@ -5,6 +5,7 @@ import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
 import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
+import { confirmDialog } from '../composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -64,7 +65,13 @@ async function updateStatus(status) {
 }
 
 async function removeQuote() {
-  if (!confirm('Delete this quote? This cannot be undone.')) return
+  const ok = await confirmDialog({
+    title: 'Delete this quote?',
+    message: 'This cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  })
+  if (!ok) return
   busy.value = true
   try {
     await api.delete(`/quote/${code}`)
@@ -77,7 +84,12 @@ async function removeQuote() {
 
 const converting = ref(false)
 async function convertToInvoice() {
-  if (!confirm('Convert this quote to a real invoice? This will check current stock for any inventory items and cannot be undone.')) return
+  const ok = await confirmDialog({
+    title: 'Convert this quote to a real invoice?',
+    message: 'This will check current stock for any inventory items and cannot be undone.',
+    confirmLabel: 'Convert',
+  })
+  if (!ok) return
   converting.value = true
   error.value = ''
   try {

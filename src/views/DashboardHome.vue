@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import RevenueTrendChart from '../components/RevenueTrendChart.vue'
+import CashFlowTrendChart from '../components/CashFlowTrendChart.vue'
 
 const auth = useAuthStore()
 const loading = ref(true)
@@ -151,6 +152,29 @@ const AGING_BAR_COLOR = {
           </button>
         </div>
         <RevenueTrendChart :data="overview.revenueTrend" :currency="currency" />
+      </div>
+
+      <div class="mt-8">
+        <h2 class="text-sm font-semibold text-ink-800">Cash flow</h2>
+        <p class="text-xs text-ink-400">Money in vs. money out, so you can see how {{ auth.businessName }} is actually doing, not just what's been invoiced.</p>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Money out this month"
+            :value="formatMoney(overview.cashFlow.expensesPaid.current, currency)"
+            :delta="{ value: overview.cashFlow.expensesPaid.changePct, goodDirection: 'down' }"
+          />
+          <StatCard
+            label="Net cash flow this month"
+            :value="formatMoney(overview.cashFlow.net.current, currency)"
+            :delta="{ value: overview.cashFlow.net.changePct, goodDirection: 'up' }"
+            hint="Money collected minus money paid out"
+          />
+        </div>
+
+        <div class="mt-4 card p-5">
+          <CashFlowTrendChart :data="overview.cashFlowTrend" :currency="currency" />
+        </div>
       </div>
 
       <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

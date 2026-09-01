@@ -4,6 +4,7 @@ import api from '../lib/api'
 import { formatMoney, formatDate } from '../lib/format'
 import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { confirmDialog } from '../composables/useConfirm'
 
 const loading = ref(true)
 const error = ref('')
@@ -59,7 +60,13 @@ async function generateNow(s) {
 }
 
 async function removeSchedule(s) {
-  if (!confirm(`Delete this recurring schedule for ${s.customer?.name || 'this customer'}? This cannot be undone - past generated invoices are unaffected.`)) return
+  const ok = await confirmDialog({
+    title: `Delete this recurring schedule?`,
+    message: `For ${s.customer?.name || 'this customer'}. This cannot be undone - past generated invoices are unaffected.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  })
+  if (!ok) return
   busyCode.value = s.code
   try {
     await api.delete(`/recurring-invoice/${s.code}`)
