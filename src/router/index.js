@@ -32,6 +32,7 @@ const routes = [
       { path: 'quotes/:code', name: 'quote-detail', component: () => import('../views/QuoteDetail.vue') },
       { path: 'expenses', name: 'expenses', component: () => import('../views/ExpenseList.vue') },
       { path: 'expenses/:code', name: 'expense-detail', component: () => import('../views/ExpenseDetail.vue') },
+      { path: 'spending', name: 'spending', component: () => import('../views/SpendList.vue') },
       { path: 'customers', name: 'customers', component: () => import('../views/CustomerList.vue') },
       { path: 'customers/:code', name: 'customer-detail', component: () => import('../views/CustomerDetail.vue') },
       { path: 'inventory', name: 'inventory', component: () => import('../views/Inventory.vue') },

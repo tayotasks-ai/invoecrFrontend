@@ -9,6 +9,7 @@ import Spinner from '../components/Spinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import RevenueTrendChart from '../components/RevenueTrendChart.vue'
 import CashFlowTrendChart from '../components/CashFlowTrendChart.vue'
+import { CATEGORY_LABEL } from '../lib/spendCategories'
 
 const auth = useAuthStore()
 const loading = ref(true)
@@ -64,6 +65,7 @@ const maxTopCustomer = computed(() =>
 )
 const maxAging = computed(() => Math.max(1, ...(overview.value?.aging || []).map((a) => a.total)))
 const hasOutstanding = computed(() => (overview.value?.cashFlow.outstanding.count || 0) > 0)
+const maxCategory = computed(() => Math.max(1, ...(overview.value?.categoryBreakdown || []).map((c) => c.total)))
 
 const exportingTransactions = ref(false)
 async function exportTransactionsCsv() {
@@ -161,8 +163,8 @@ const AGING_BAR_COLOR = {
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <StatCard
             label="Money out this month"
-            :value="formatMoney(overview.cashFlow.expensesPaid.current, currency)"
-            :delta="{ value: overview.cashFlow.expensesPaid.changePct, goodDirection: 'down' }"
+            :value="formatMoney(overview.cashFlow.outflow.current, currency)"
+            :delta="{ value: overview.cashFlow.outflow.changePct, goodDirection: 'down' }"
           />
           <StatCard
             label="Net cash flow this month"
@@ -174,6 +176,25 @@ const AGING_BAR_COLOR = {
 
         <div class="mt-4 card p-5">
           <CashFlowTrendChart :data="overview.cashFlowTrend" :currency="currency" />
+        </div>
+
+        <div v-if="overview.categoryBreakdown.length" class="mt-4 card p-5">
+          <h3 class="mb-3 text-sm font-semibold text-ink-800">Spending by category</h3>
+          <p class="mb-3 text-xs text-ink-400">Where this month's money out went - vendor payments plus everything logged in Spending.</p>
+          <ul class="space-y-2.5">
+            <li v-for="c in overview.categoryBreakdown" :key="c.category">
+              <div class="mb-1 flex items-center justify-between text-xs">
+                <span class="font-medium text-ink-600">{{ CATEGORY_LABEL[c.category] || c.category }}</span>
+                <span class="text-ink-400">{{ formatMoney(c.total, currency) }}</span>
+              </div>
+              <div class="h-2 w-full overflow-hidden rounded-full bg-ink-100">
+                <div
+                  class="h-full rounded-full bg-rose-400"
+                  :style="{ width: `${Math.max((c.total / maxCategory) * 100, 3)}%` }"
+                />
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
 
