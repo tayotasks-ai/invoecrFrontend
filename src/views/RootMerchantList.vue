@@ -15,6 +15,26 @@ const plan = ref('')
 const flag = ref('')
 const page = ref(1)
 
+// One-off (but safe to re-run) action for the platform-fee migration - see
+// AdminService.syncSubaccountFees. Not tied to any single merchant, so it
+// lives here on the list page rather than on a merchant detail page.
+const syncing = ref(false)
+const syncResult = ref(null)
+const syncError = ref('')
+async function syncSubaccountFees() {
+  syncing.value = true
+  syncError.value = ''
+  syncResult.value = null
+  try {
+    const res = await api.post('/admin/subaccounts/sync-fees')
+    syncResult.value = res.data
+  } catch (e) {
+    syncError.value = e.message
+  } finally {
+    syncing.value = false
+  }
+}
+
 async function loadPlans() {
   try {
     const res = await api.get('/entity/plans')
@@ -57,11 +77,26 @@ watch(page, load)
 
 <template>
   <div>
-    <div>
-      <h1 class="text-lg font-semibold text-ink-900">Merchants</h1>
-      <p class="mt-1 text-sm text-ink-400">
-        Every business on invoecr. Flag one for full testing, suspend an account, or move it onto a different plan.
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-lg font-semibold text-ink-900">Merchants</h1>
+        <p class="mt-1 text-sm text-ink-400">
+          Every business on invoecr. Flag one for full testing, suspend an account, or move it onto a different plan.
+        </p>
+      </div>
+      <button class="btn-secondary flex-none" :disabled="syncing" @click="syncSubaccountFees">
+        {{ syncing ? 'Syncing…' : 'Sync subaccount fees to 0%' }}
+      </button>
+    </div>
+
+    <p v-if="syncError" class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{{ syncError }}</p>
+    <div v-if="syncResult" class="mt-3 rounded-md bg-ink-50 px-3 py-2.5 text-sm text-ink-700">
+      <p>
+        Updated {{ syncResult.updated }} of {{ syncResult.total }} subaccount{{ syncResult.total === 1 ? '' : 's' }} to a 0% platform fee.
       </p>
+      <ul v-if="syncResult.failed.length" class="mt-1.5 space-y-0.5 text-xs text-red-600">
+        <li v-for="f in syncResult.failed" :key="f.bankAccountCode">{{ f.accountName }}: {{ f.message }}</li>
+      </ul>
     </div>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
