@@ -62,6 +62,20 @@ const routes = [
     component: () => import('../views/VerifyEmail.vue'),
   },
   {
+    // Where PAYSTACK_CALLBACK_URL points - Paystack redirects the
+    // customer's browser here after checkout, with `reference`/`trxref` as
+    // query params (see PaymentCallback.vue). This is a *static* path
+    // segment, so Vue Router ranks it above the dynamic `/payment/:code`
+    // route below regardless of declaration order - without a route
+    // registered here at all, `/payment/callback` would otherwise match
+    // that dynamic route instead, with "callback" wrongly treated as an
+    // invoice number (which is exactly what used to happen - see
+    // PaymentCallback.vue's own comment on the shape of that bug).
+    path: '/payment/callback',
+    name: 'payment-callback',
+    component: () => import('../views/PaymentCallback.vue'),
+  },
+  {
     // Matches the payment link the backend embeds in every invoice
     // email/PDF: `${APP_URL}/payment/${invoiceNumber}`. Public, no auth.
     path: '/payment/:code',
